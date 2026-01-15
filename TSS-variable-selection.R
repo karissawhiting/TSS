@@ -1,60 +1,17 @@
-library("MASS", lib.loc="/home/nfs/capanum/Rpackages/")
-#library("multtest", lib.loc="/home/nfs/capanum/Rpackages/")
-library("glmnet", lib.loc="/home/nfs/capanum/Rpackages/")
-library("changepoint", lib.loc="/home/nfs/capanum/Rpackages/")
-library("SIS", lib.loc="/home/nfs/capanum/Rpackages/")
-library("ncvreg", lib.loc="/home/nfs/capanum/Rpackages/")
-library("stabs", lib.loc="/home/nfs/capanum/Rpackages/")
-library("car", lib.loc="/home/nfs/capanum/Rpackages/")
-library("plsRglm", lib.loc="/home/nfs/capanum/Rpackages/")
-library("rJava", lib.loc="/home/nfs/capanum/Rpackages/")
-library("glmulti", lib.loc="/home/nfs/capanum/Rpackages/")
-library("lars", lib.loc="/home/nfs/capanum/Rpackages/")
-library("scalreg", lib.loc="/home/nfs/capanum/Rpackages/")
-library("hdi", lib.loc="/home/nfs/capanum/Rpackages/")
-library("perry", lib.loc="/home/nfs/capanum/Rpackages/")
-library("robustHD", lib.loc="/home/nfs/capanum/Rpackages/")
-
-
-# TODO- T2w first, then add T1. 
-# try pre-processing but no dimension reduction 
-# Pre-processing/dimension reduction first. 
-# correlation filtering with all variables (and also T2)
-# CV on entire process (e.g. 5 folds)
-# once variables are selected, fit a "final" model on 4 folds with selected predictors. Then predict() on 5th fold 
-
-
-# Preprocess Data  ------------------------------------------------------
-
-#remove clinical data;
-post_t2w <- read.table('/home/nfs/capanum/var_selection/postt2_features_cutoff0_9.txt', header=TRUE)
-attach(post_t2w)
-y_t2w=post_t2w[,1]
-#x_t2w=post_t2w[,-1];
-x_t2w=post_t2w[,c(-1,-2)];
-
-post_t1p <- read.table('/home/nfs/capanum/var_selection/postt1p_features_cutoff0_9.txt', header=TRUE)
-attach(post_t2w)
-y_t1p=post_t1p[,1]
-x_t1p=post_t1p[,c(-1,-2)];
-
-post_deep <- read.table('/home/nfs/capanum/var_selection/postdeep_features_cutoff0_8.txt', header=TRUE)
-attach(post_deep)
-y_deep=post_deep[,1]
-x_deep=post_deep[,c(-1,-2)];
-
-
-#full_data <- cbind(y_t2w, x_t2w, x_deep)
-
-
-
-y=y_t2w
-x=cbind(x_t2w, x_t1p, x_deep)
-
-
-#set.seed(13)
-
-
+library("MASS")
+library("glmnet")
+library("changepoint")
+library("SIS")
+library("ncvreg")
+library("stabs")
+library("car")
+library("plsRglm")
+library("rJava")
+library("glmulti")
+library("spikeslab")
+library(tidyverse)
+library(readxl)
+library(caret)
 
 # TSS Function ------------------------------------------------------------
 
@@ -163,6 +120,8 @@ tss <- function(x, y,
     
     k_cv[isim, ] <- apply(freq_union, 2, mean)
     
+    # HERE IS CUTOFF OR ORDER ---------
+    
     # NOTE: Non are greater than cutoff
     #signif <- which(k_cv[isim, ] >= cutoff);print("signif");print(signif)
     signif <- order(k_cv[isim,], decreasing=TRUE)[1:10];print("signif");print(signif)
@@ -216,6 +175,8 @@ tss <- function(x, y,
       if (length(signif) > 2 & class(try.out) != "try-error") {
         cptsTSS <- cpts(changepointTSS)
         cpts_TSS <- cptsTSS[1]
+        
+        ## This is 
         signif_TSS <- which(k_cv_fin2[isim, ] >= k_cv_fin2[isim, sort_decrease[cpts_TSS]])
         signif_threshold[isim] <- k_cv_fin2[isim, sort_decrease[cpts_TSS]]
         
@@ -247,23 +208,3 @@ tss <- function(x, y,
   
   list(signif_TSS = signif_TSS, signif_threshold = signif_threshold, signif = signif, failTSS = failTSS, models_TSS=models_TSS)
 }
-
-# Run Function ------------------------------------------------------------
-
-
-
-results <- tss(
-  x = x,
-  y = y,
-  nrepeat = 1000,
-  nrepeat2 = 200,
-  nsim = 25,
-  percent_split = .5,
-  cutoff = .5, 
-  family = "binomial")
-
-
-print(results)
-
-freq_TSS=paste(results$models_TSS)
-as.data.frame(table(freq_TSS))
